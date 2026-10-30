@@ -1,4 +1,5 @@
 import 'package:gameon/features/home/models/institucion_deportiva.dart';
+import 'package:gameon/features/home/services/instituciones_sin_conexion_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:developer' as developer; // Para logs más estructurados
 
@@ -7,18 +8,27 @@ import 'dart:developer' as developer; // Para logs más estructurados
 
 // ViewModel encargado de la lógica para obtener instalaciones deportivas
 class HomeViewModel {
+  HomeViewModel({InstitucionesSinConexionService? sinConexionService})
+    : _sinConexionService =
+          sinConexionService ?? InstitucionesSinConexionService();
+
+  final InstitucionesSinConexionService _sinConexionService;
+  bool _mostrandoDatosSinConexion = false;
+
+  bool get mostrandoDatosSinConexion => _mostrandoDatosSinConexion;
+
+  Future<void> guardarSinConexion(List<InstitucionDeportiva> instituciones) =>
+      _sinConexionService.guardar(instituciones);
+
   // Obtiene la lista de instalaciones deportivas activas desde Supabase
   Future<List<InstitucionDeportiva>> fetchInstituciones() async {
-    final client = Supabase.instance.client;
-
-    // Log de sesión / autenticación
-    final session = client.auth.currentSession;
-    developer.log(
-      'fetchInstituciones: iniciando. Authenticated=${session != null} userId=${session?.user.id}',
-      name: 'HomeViewModel',
-    );
-
     try {
+      final client = Supabase.instance.client;
+      final session = client.auth.currentSession;
+      developer.log(
+        'fetchInstituciones: iniciando. Authenticated=${session != null} userId=${session?.user.id}',
+        name: 'HomeViewModel',
+      );
       developer.log(
         'fetchInstituciones: ejecutando query instituciones_deportivas (estado=1)...',
         name: 'HomeViewModel',
@@ -45,6 +55,7 @@ class HomeViewModel {
         name: 'HomeViewModel',
       );
 
+      _mostrandoDatosSinConexion = false;
       return lista;
     } on PostgrestException catch (e, st) {
       // Logs detallados de la excepción de Postgrest (RLS / permisos / sintaxis)
@@ -55,7 +66,7 @@ class HomeViewModel {
         stackTrace: st,
         level: 1000,
       );
-      rethrow; // Permite que la UI lo capture y muestre
+      return _recuperarListaGuardadaOReenviar(e);
     } catch (e, st) {
       developer.log(
         'Error inesperado al consultar instituciones: $e',
@@ -64,9 +75,35 @@ class HomeViewModel {
         stackTrace: st,
         level: 1000,
       );
-      rethrow;
+      return _recuperarListaGuardadaOReenviar(e);
     } finally {
       developer.log('fetchInstituciones: finalizado', name: 'HomeViewModel');
     }
+  }
+
+  Future<List<InstitucionDeportiva>> _recuperarListaGuardadaOReenviar(
+    Object errorOriginal,
+  ) async {
+    try {
+      final guardadas = await _sinConexionService.leer();
+      if (guardadas != null) {
+        _mostrandoDatosSinConexion = true;
+        developer.log(
+          'fetchInstituciones: se muestran ${guardadas.length} registros guardados sin conexión.',
+          name: 'HomeViewModel',
+        );
+        return guardadas;
+      }
+    } catch (error, stackTrace) {
+      developer.log(
+        'No fue posible leer el archivo sin conexión.',
+        name: 'HomeViewModel',
+        error: error,
+        stackTrace: stackTrace,
+        level: 1000,
+      );
+    }
+    _mostrandoDatosSinConexion = false;
+    throw errorOriginal;
   }
 }

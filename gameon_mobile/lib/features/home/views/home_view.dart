@@ -36,7 +36,8 @@ class _HomeViewState extends State<HomeView> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final managerId = context.watch<PerfilViewModel>().managerId;
-    if (managerId != null && context.watch<PerfilViewModel>().mode == AppUserMode.gestor) {
+    if (managerId != null &&
+        context.watch<PerfilViewModel>().mode == AppUserMode.gestor) {
       return GestorView(managerId: managerId);
     }
     final theme = Theme.of(context);
@@ -121,6 +122,7 @@ class HomeTabScaffold extends StatefulWidget {
 class _HomeTabScaffoldState extends State<HomeTabScaffold> {
   late final HomeViewModel _vm;
   late Future<List<InstitucionDeportiva>> _institucionesFuture;
+  List<InstitucionDeportiva> _institucionesActuales = const [];
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
   NotificacionesViewModel? _notificacionesVm;
@@ -130,7 +132,7 @@ class _HomeTabScaffoldState extends State<HomeTabScaffold> {
   void initState() {
     super.initState();
     _vm = HomeViewModel();
-    _institucionesFuture = _vm.fetchInstituciones();
+    _institucionesFuture = _cargarInstituciones();
     _searchController.addListener(() {
       setState(() => _query = _searchController.text.trim());
     });
@@ -149,6 +151,37 @@ class _HomeTabScaffoldState extends State<HomeTabScaffold> {
   void _onPerfilVmChange() {
     if (!mounted) return;
     _initNotificationsViewModel();
+  }
+
+  Future<List<InstitucionDeportiva>> _cargarInstituciones() async {
+    final instituciones = await _vm.fetchInstituciones();
+    _institucionesActuales = instituciones;
+    return instituciones;
+  }
+
+  Future<void> _guardarSinConexion() async {
+    if (_institucionesActuales.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Primero espere a que se cargue la lista de instalaciones.',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    await _vm.guardarSinConexion(_institucionesActuales);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          '${_institucionesActuales.length} instalaciones guardadas sin conexión.',
+        ),
+        backgroundColor: Colors.green,
+      ),
+    );
   }
 
   void _initNotificationsViewModel() {
@@ -222,7 +255,7 @@ class _HomeTabScaffoldState extends State<HomeTabScaffold> {
               label: 'Reintentar',
               textColor: Colors.white,
               onPressed: () {
-                setState(() => _institucionesFuture = _vm.fetchInstituciones());
+                setState(() => _institucionesFuture = _cargarInstituciones());
                 _openMapView();
               },
             ),
@@ -473,6 +506,20 @@ class _HomeTabScaffoldState extends State<HomeTabScaffold> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        key: const Key('guardar_sin_conexion_button'),
+                        onPressed: _guardarSinConexion,
+                        icon: const Icon(Icons.save_alt_outlined),
+                        label: const Text('Guardar sin conexión'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Colors.white70),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -589,13 +636,40 @@ class _HomeTabScaffoldState extends State<HomeTabScaffold> {
                     );
                   }
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: filtradas.length,
-                    itemBuilder: (context, index) {
-                      final inst = filtradas[index];
-                      return _buildModernCard(context, inst);
-                    },
+                  return Column(
+                    children: [
+                      if (_vm.mostrandoDatosSinConexion)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(Icons.cloud_off_outlined),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Modo sin conexión: se muestran las instalaciones guardadas.',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          itemCount: filtradas.length,
+                          itemBuilder: (context, index) {
+                            final inst = filtradas[index];
+                            return _buildModernCard(context, inst);
+                          },
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),

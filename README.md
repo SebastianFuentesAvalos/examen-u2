@@ -6,6 +6,36 @@ Proyecto desarrollado para el curso **SI-988 · Soluciones Móviles II** de la E
 
 ---
 
+## Examen de Unidad 2
+
+| Campo | Detalle |
+|---|---|
+| Tipo de examen | Examen de Unidad 2 – Práctico |
+| Aplicación evaluada | `gameon_mobile` |
+| Repositorio individual | `examen-u2` |
+| Evidencias | Pruebas unitarias y archivo de instrucciones del examen |
+
+### Cambios implementados
+
+1. **Guardado sin conexión de instalaciones deportivas:** la pantalla Inicio incorpora el botón **Guardar sin conexión**, que guarda la lista visible en el archivo privado `instituciones_sin_conexion.json`.
+2. **Recuperación sin internet:** si no se puede consultar el backend, la app carga la última lista guardada y muestra el aviso de modo sin conexión.
+3. **Archivo verificable desde terminal:** el archivo se guarda como JSON legible para su revisión en una instalación de depuración mediante `adb shell run-as com.nkmelndz.gameon cat app_flutter/instituciones_sin_conexion.json`.
+4. **Pruebas de guardado local:** se añadieron pruebas independientes para validar confidencialidad del contenido, guardado y lectura de tres registros, archivo inexistente, archivo dañado y borrado de datos.
+
+### Archivos del proyecto móvil afectados
+
+- `gameon_mobile/pubspec.yaml` y `gameon_mobile/pubspec.lock`: dependencia `path_provider` para acceder al almacenamiento privado de la aplicación.
+- `gameon_mobile/lib/features/home/services/instituciones_sin_conexion_service.dart`: creación, lectura y escritura del archivo JSON sin conexión.
+- `gameon_mobile/lib/features/home/viewmodels/home_viewmodel.dart`: recuperación de la lista guardada cuando la carga remota falla.
+- `gameon_mobile/lib/features/home/views/home_view.dart`: botón de guardado y aviso visual de modo sin conexión.
+- `gameon_mobile/lib/core/services/offline_clients_repository.dart`: lógica aislada para las pruebas de archivo y cifrado simulado.
+- `test_4_5/Ejercicio04/`: pruebas del punto 4.
+- `test_4_5/Ejercicio05/`: pruebas del punto 5.
+- `test_4_5/simulados_guardado_local.dart`: archivo y cifrado simulados usados por las pruebas.
+- `U2.S12.EXAMEN DE UNIDAD - PRÁCTICO.docx`: enunciado y evidencia del examen.
+
+---
+
 ## Información del proyecto
 
 | Campo | Detalle |
